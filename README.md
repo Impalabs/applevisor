@@ -58,7 +58,7 @@ codesign --entitlements entitlements.xml -s ${CERT_NAME} /path/to/binary
 
 ### Compilation Workflow
 
-Create a Rust project and add Applevisor as a dependency in `Cargo.toml`. You can either pull it from [crates.io](TODO) ...
+Create a Rust project and add Applevisor as a dependency in `Cargo.toml`. You can either pull it from [crates.io](https://crates.io/crates/applevisor) ...
 
 ```toml
 # Check which version is the latest, this part of the README might not be updated
@@ -66,7 +66,7 @@ Create a Rust project and add Applevisor as a dependency in `Cargo.toml`. You ca
 applevisor = "0.1.1"
 ```
 
-... or directly from the GitHub repository.
+... or directly from the [GitHub repository](https://github.com/impalabs/applevisor).
 
 ```toml
 applevisor = { git="https://github.com/impalabs/applevisor", branch="master" }
@@ -105,7 +105,9 @@ target/release/${PROJECT_NAME}
 
 ## Documentation
 
-The documentation can be generated and opened using:
+The documentation is available online at the following address: [https://docs.rs/applevisor](https://docs.rs/applevisor)
+
+Alternatively, you can generate the documentation using `cargo`:
 
 ```
 cargo doc --open
