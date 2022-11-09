@@ -1,6 +1,6 @@
 [package]
 name = "applevisor"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["lyte <hyperpom@impalabs.fr>"]
 edition = "2021"
 description = "Rust bindings for the Apple Silicon Hypervisor Framework"

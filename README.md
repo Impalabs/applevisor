@@ -63,7 +63,7 @@ Create a Rust project and add Applevisor as a dependency in `Cargo.toml`. You ca
 ```toml
 # Check which version is the latest, this part of the README might not be updated
 # in future releases.
-applevisor = "0.1.0"
+applevisor = "0.1.1"
 ```
 
 ... or directly from the GitHub repository.
