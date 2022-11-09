@@ -11,8 +11,8 @@ license = "GPL-3.0-or-later"
 keywords = ["apple", "hypervisor", "macos", "virtualization", "aarch64"]
 categories = ["os::macos-apis", "hardware-support", "api-bindings"]
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 applevisor-sys = { path = "./applevisor-sys", version = "0.1.0" }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
