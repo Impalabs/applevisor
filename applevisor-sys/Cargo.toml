@@ -1,6 +1,6 @@
 [package]
 name = "applevisor-sys"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["lyte <hyperpom@impalabs.fr>"]
 edition = "2021"
 description = "Unsafe rust bindings for the Apple Silicon Hypervisor Framework"
@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/impalabs/applevisor"
 license = "GPL-3.0-or-later"
 keywords = ["apple", "hypervisor", "macos", "virtualization", "aarch64"]
-categories = ["os::macos-apis", "hardware-support", "api-bindings"]
+categories = ["os::macos-apis", "hardware-support", "api-bindings", "virtualization"]
 
 [dependencies]
 libc = "0.2"

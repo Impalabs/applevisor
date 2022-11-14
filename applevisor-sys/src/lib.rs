@@ -14,7 +14,7 @@
 
 use core::ffi::c_void;
 
-#[link(name = "Hypervisor", kind = "framework")]
+#[cfg_attr(target_os = "macos", link(name = "Hypervisor", kind = "framework"))]
 extern "C" {}
 
 /// The return type of framework functions.
