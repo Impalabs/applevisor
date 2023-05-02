@@ -25,7 +25,7 @@
 //! You can now sign binaries and add entitlements using the following command:
 //!
 //! ```
-//! codesign --entitlements entitlements.xml -s ${CERT_NAME} /path/to/binary
+//! codesign --entitlements entitlements.xml -f -s ${CERT_NAME} /path/to/binary
 //! ```
 //!
 //! **Note:** The `entitlements.xml` file is available at the root of the Applevisor repository.
@@ -69,7 +69,7 @@
 //! Sign the binary and grant the hypervisor entitlement.
 //!
 //! ```
-//! codesign --entitlements entitlements.xml -s ${CERT_NAME} target/release/${PROJECT_NAME}
+//! codesign --entitlements entitlements.xml -f -s ${CERT_NAME} target/release/${PROJECT_NAME}
 //! ```
 //!
 //! Run the binary.
