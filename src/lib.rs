@@ -1,34 +1,20 @@
 //! Rust bindings for the Apple Silicon Hypervisor.framework
 //!
-//! This library can be used to build Rust applications leveraging the `Hypervisor` framework on
-//! Apple Silicon. It was mainly built for [Hyperpom](https://github.com/impalabs/hyperpom), but it
-//! can serve more general purposes.
+//! This library can be used to build Rust applications leveraging the
+//! [`Hypervisor`](https://developer.apple.com/documentation/hypervisor) framework on
+//! Apple Silicon.
 //!
 //! ### Self-Signed Binaries and Hypervisor Entitlement
 //!
 //! To be able to reach the Hypervisor Framework, a binary executable has to have been granted the
 //! [hypervisor entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_hypervisor).
 //!
-//! #### Certificate Chain
-//!
-//! To add this entitlement to your project, you'll first need a certificate chain to sign your
-//! binaries, which can be created by following the instructions below.
-//!
-//!  - Open the *Keychain Access* application.
-//!  - Go to **Keychain Access** > **Certificate Assistant** > **Create a Certificate**.
-//!  - Fill out the **Name** field, this value will be used later on to identify the certificate
-//!    we want to sign with and will be referred to as `${CERT_NAME}`.
-//!  - Set **Identity Type** to `Self-Signed Root`.
-//!  - Set **Certificate Type** to `Code Signing`.
-//!  - Click on **Create**.
-//!
-//! You can now sign binaries and add entitlements using the following command:
+//! You can add this entitlement to a binary located at `/path/to/binary` by using the
+//! `entitlements.xml` file found at the root of the repository and the following command:
 //!
 //! ```
-//! codesign --entitlements entitlements.xml -f -s ${CERT_NAME} /path/to/binary
+//! codesign --sign - --entitlements entitlements.xml --deep --force /path/to/binary
 //! ```
-//!
-//! **Note:** The `entitlements.xml` file is available at the root of the Applevisor repository.
 //!
 //! ### Compilation Workflow
 //!
@@ -69,7 +55,7 @@
 //! Sign the binary and grant the hypervisor entitlement.
 //!
 //! ```
-//! codesign --entitlements entitlements.xml -f -s ${CERT_NAME} target/release/${PROJECT_NAME}
+//! codesign --sign - --entitlements entitlements.xml --deep --force target/release/${PROJECT_NAME}
 //! ```
 //!
 //! Run the binary.
@@ -85,10 +71,10 @@
 //!  * creates a virtual machine for the current process;
 //!  * creates a virtual CPU;
 //!  * enables the hypervisor's debug features to be able to use breakpoints later on;
-//!  * creates a physical memory mapping of 0x1000 bytes and maps it at address 0x10000 with RWX
+//!  * creates a physical memory mapping of 0x1000 bytes and maps it at address 0x4000 with RWX
 //!    permissions;
-//!  * writes the instructions `mov x0, #0x42; brk #0;` at address 0x10000;
-//!  * sets PC to 0x10000;
+//!  * writes the instructions `mov x0, #0x42; brk #0;` at address 0x4000;
+//!  * sets PC to 0x4000;
 //!  * starts the vCPU and runs our program;
 //!  * returns when it encounters the breakpoint.
 //!
@@ -109,23 +95,22 @@
 //!     assert!(vcpu.set_trap_debug_exceptions(true).is_ok());
 //!     assert!(vcpu.set_trap_debug_reg_accesses(true).is_ok());
 //!
-//!     // Creates a mapping object that represents a 0x10000-byte physical memory range.
+//!     // Creates a mapping object that represents a 0x1000-byte physical memory range.
 //!     let mut mem = Mapping::new(0x1000).unwrap();
 //!
 //!     // This mapping needs to be mapped to effectively allocate physical memory for the guest.
-//!     // Here we map the map the region at address 0x10000 and set the permissions to
-//!     // Read-Write-Execute.
-//!     // Note that physical memory page sizes on Apple Silicon are 0x10000-aligned, you might
+//!     // Here we map the region at address 0x4000 and set the permissions to Read-Write-Execute.
+//!     // Note that physical memory page sizes on Apple Silicon are 0x4000-aligned, you might
 //!     // encounter errors if you don't respect the alignment.
-//!     assert_eq!(mem.map(0x10000, MemPerms::RWX), Ok(()));
+//!     assert_eq!(mem.map(0x4000, MemPerms::RWX), Ok(()));
 //!
-//!     // Writes a `mov x0, #0x42` instruction at address 0x10000.
-//!     assert_eq!(mem.write_dword(0x10000, 0xd2800840), Ok(4));
-//!     // Writes a `brk #0` instruction at address 0x10004.
-//!     assert_eq!(mem.write_dword(0x10004, 0xd4200000), Ok(4));
+//!     // Writes a `mov x0, #0x42` instruction at address 0x4000.
+//!     assert_eq!(mem.write_dword(0x4000, 0xd2800840), Ok(4));
+//!     // Writes a `brk #0` instruction at address 0x4004.
+//!     assert_eq!(mem.write_dword(0x4004, 0xd4200000), Ok(4));
 //!
-//!     // Sets PC to 0x10000.
-//!     assert!(vcpu.set_reg(Reg::PC, 0x10000).is_ok());
+//!     // Sets PC to 0x4000.
+//!     assert!(vcpu.set_reg(Reg::PC, 0x4000).is_ok());
 //!
 //!     // Starts the Vcpu. It will execute our mov and breakpoint instructions before stopping.
 //!     assert!(vcpu.run().is_ok());
@@ -142,17 +127,19 @@
 //! Feel free to also have a look at the [Hyperpom](https://github.com/impalabs/hyperpom)
 //! project's source code for a real-life example of how these bindings are used.
 
-
-#![feature(portable_simd)]
-#![feature(simd_ffi)]
-#![feature(concat_idents)]
+#![cfg_attr(feature = "simd_nightly", feature(portable_simd), feature(simd_ffi), feature(concat_idents))]
 
 use core::ffi::c_void;
 use core::ptr;
 use std::alloc;
 use std::hash::{Hash, Hasher};
-use std::simd;
 use std::sync::{Arc, RwLock};
+
+#[cfg(feature = "simd_nightly")]
+use std::simd;
+
+#[cfg(not(feature = "simd_nightly"))]
+use concat_idents::concat_idents;
 
 use applevisor_sys::hv_cache_type_t::*;
 use applevisor_sys::hv_exit_reason_t::*;
@@ -199,11 +186,22 @@ macro_rules! gen_enum {
             )*
         }
 
+        #[cfg(feature = "simd_nightly")]
         #[allow(clippy::from_over_into)]
         impl Into<$src> for $dst {
             fn into(self) -> $src {
                 match self {
                     $($dst::$variant => concat_idents!($prefix, $variant),)*
+                }
+            }
+        }
+
+        #[cfg(not(feature = "simd_nightly"))]
+        #[allow(clippy::from_over_into)]
+        impl Into<$src> for $dst {
+            fn into(self) -> $src {
+                match self {
+                    $($dst::$variant => concat_idents!(x = $prefix, $variant { x }),)*
                 }
             }
         }
@@ -912,7 +910,7 @@ impl std::ops::BitOr for MemPerms {
 }
 
 /// The size of a memory page on Apple Silicon.
-pub const PAGE_SIZE: usize = 0x10000;
+pub const PAGE_SIZE: usize = 0x4000;
 
 /// Represents a host memory allocation.
 #[derive(Clone, Debug, Eq)]
@@ -1499,6 +1497,7 @@ impl Vcpu {
         ))
     }
 
+    #[cfg(feature = "simd_nightly")]
     /// Gets the value of a vCPU floating point register
     pub fn get_simd_fp_reg(&self, reg: SimdFpReg) -> Result<simd::i8x16> {
         let mut value = simd::i8x16::from_array([0; 16]);
@@ -1510,8 +1509,31 @@ impl Vcpu {
         Ok(value)
     }
 
+    #[cfg(feature = "simd_nightly")]
     /// Sets the value of a vCPU floating point register
     pub fn set_simd_fp_reg(&self, reg: SimdFpReg, value: simd::i8x16) -> Result<()> {
+        hv_unsafe_call!(hv_vcpu_set_simd_fp_reg(
+            self.vcpu.0,
+            Into::<hv_simd_fp_reg_t>::into(reg),
+            value
+        ))
+    }
+
+    #[cfg(not(feature = "simd_nightly"))]
+    /// Gets the value of a vCPU floating point register
+    pub fn get_simd_fp_reg(&self, reg: SimdFpReg) -> Result<u128> {
+        let mut value = 0;
+        hv_unsafe_call!(hv_vcpu_get_simd_fp_reg(
+            self.vcpu.0,
+            Into::<hv_simd_fp_reg_t>::into(reg),
+            &mut value
+        ))?;
+        Ok(value)
+    }
+
+    #[cfg(not(feature = "simd_nightly"))]
+    /// Sets the value of a vCPU floating point register
+    pub fn set_simd_fp_reg(&self, reg: SimdFpReg, value: u128) -> Result<()> {
         hv_unsafe_call!(hv_vcpu_set_simd_fp_reg(
             self.vcpu.0,
             Into::<hv_simd_fp_reg_t>::into(reg),
@@ -1743,16 +1765,16 @@ mod tests {
             Err(HypervisorError::BadArgument)
         );
         // ... but a page-aligned address should.
-        assert_eq!(mem.map(0x10000, MemPerms::RW), Ok(()));
+        assert_eq!(mem.map(0x4000, MemPerms::RW), Ok(()));
         // Unmapping it should also work.
         assert_eq!(mem.unmap(), Ok(()));
         // Mapping it twice should not work though.
-        assert_eq!(mem.map(0x10000, MemPerms::RW), Ok(()));
-        assert_eq!(mem.map(0x10000, MemPerms::RW), Err(HypervisorError::Busy));
+        assert_eq!(mem.map(0x4000, MemPerms::RW), Ok(()));
+        assert_eq!(mem.map(0x4000, MemPerms::RW), Err(HypervisorError::Busy));
         // Creating a second mapping of size 0x1000.
         let mut mem2 = Mapping::new(0x1000).unwrap();
         // Mapping it at the location of the first one should not work.
-        assert_eq!(mem2.map(0x10000, MemPerms::RW), Err(HypervisorError::Error));
+        assert_eq!(mem2.map(0x4000, MemPerms::RW), Err(HypervisorError::Error));
     }
 
     #[test]
@@ -1762,8 +1784,8 @@ mod tests {
         let mut mem1 = Mapping::new(0x1000).unwrap();
         let mut mem2 = Mapping::new(0x1000).unwrap();
         // Maps the two mappings at the same address.
-        assert_eq!(mem1.map(0x10000, MemPerms::RW), Ok(()));
-        assert_eq!(mem2.map(0x10000, MemPerms::RW), Err(HypervisorError::Error));
+        assert_eq!(mem1.map(0x4000, MemPerms::RW), Ok(()));
+        assert_eq!(mem2.map(0x4000, MemPerms::RW), Err(HypervisorError::Error));
 
         let mut mem3 = Mapping::new(0x1000).unwrap();
         assert_eq!(mem3.map(0x20000, MemPerms::RW), Ok(()));
@@ -1899,23 +1921,47 @@ mod tests {
         assert_eq!(vcpu.get_reg(Reg::X2), Ok(0x23232323));
         assert_eq!(vcpu.get_reg(Reg::X3), Ok(0x34343434));
         assert_eq!(vcpu.get_reg(Reg::X4), Ok(0x45454545));
-        // Setting floating point registers
-        let simd1 = simd::i8x16::from_array([0x1; 16]);
-        let simd2 = simd::i8x16::from_array([0x2; 16]);
-        let simd3 = simd::i8x16::from_array([0x3; 16]);
-        let simd4 = simd::i8x16::from_array([0x4; 16]);
-        let simd5 = simd::i8x16::from_array([0x5; 16]);
-        assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q0, simd1), Ok(()));
-        assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q1, simd2), Ok(()));
-        assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q2, simd3), Ok(()));
-        assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q3, simd4), Ok(()));
-        assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q4, simd5), Ok(()));
-        // Getting floating point registers' values
-        assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q0), Ok(simd1));
-        assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q1), Ok(simd2));
-        assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q2), Ok(simd3));
-        assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q3), Ok(simd4));
-        assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q4), Ok(simd5));
+
+        #[cfg(not(feature = "simd_nightly"))]
+        {
+            // Setting floating point registers
+            let simd1 = u128::from_le_bytes([0x1; 16]);
+            let simd2 = u128::from_le_bytes([0x2; 16]);
+            let simd3 = u128::from_le_bytes([0x3; 16]);
+            let simd4 = u128::from_le_bytes([0x4; 16]);
+            let simd5 = u128::from_le_bytes([0x5; 16]);
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q0, simd1), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q1, simd2), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q2, simd3), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q3, simd4), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q4, simd5), Ok(()));
+            // Getting floating point registers' values
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q0), Ok(simd1));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q1), Ok(simd2));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q2), Ok(simd3));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q3), Ok(simd4));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q4), Ok(simd5));
+        }
+        #[cfg(feature = "simd_nightly")]
+        {
+            // Setting floating point registers
+            let simd1 = simd::i8x16::from_array([0x1; 16]);
+            let simd2 = simd::i8x16::from_array([0x2; 16]);
+            let simd3 = simd::i8x16::from_array([0x3; 16]);
+            let simd4 = simd::i8x16::from_array([0x4; 16]);
+            let simd5 = simd::i8x16::from_array([0x5; 16]);
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q0, simd1), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q1, simd2), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q2, simd3), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q3, simd4), Ok(()));
+            assert_eq!(vcpu.set_simd_fp_reg(SimdFpReg::Q4, simd5), Ok(()));
+            // Getting floating point registers' values
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q0), Ok(simd1));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q1), Ok(simd2));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q2), Ok(simd3));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q3), Ok(simd4));
+            assert_eq!(vcpu.get_simd_fp_reg(SimdFpReg::Q4), Ok(simd5));
+        }
     }
 
     #[test]
@@ -1923,12 +1969,13 @@ mod tests {
         let _vm = VirtualMachine::new().unwrap();
         let vcpu = Vcpu::new().unwrap();
         let mut mem = Mapping::new(0x1000).unwrap();
-        assert_eq!(mem.map(0x10000, MemPerms::RWX), Ok(()));
-        // Writes a brk #0 instruction at address 0x10000.
-        assert_eq!(mem.write_dword(0x10000, 0xd2800840), Ok(4));
-        assert_eq!(mem.write_dword(0x10004, 0xd4200000), Ok(4));
-        // Sets PC to 0x10000.
-        assert!(vcpu.set_reg(Reg::PC, 0x10000).is_ok());
+        assert_eq!(mem.map(0x4000, MemPerms::RWX), Ok(()));
+        // Writes a `mov x0, #0x42` instruction at address 0x4000.
+        assert_eq!(mem.write_dword(0x4000, 0xd2800840), Ok(4));
+        // Writes a `brk #0` instruction at address 0x4004.
+        assert_eq!(mem.write_dword(0x4004, 0xd4200000), Ok(4));
+        // Sets PC to 0x4000.
+        assert!(vcpu.set_reg(Reg::PC, 0x4000).is_ok());
         // Starts the Vcpu.
         assert!(vcpu.run().is_ok());
         let _exit_info = vcpu.get_exit_info();

@@ -29,7 +29,7 @@
  * [Author](#author)
 
 
-This library can be used to build Rust applications leveraging the `Hypervisor` framework on Apple Silicon. It was mainly built for [Hyperpom](https://github.com/impalabs/hyperpom), but it can serve more general purposes.
+This library can be used to build Rust applications leveraging the [`Hypervisor`](https://developer.apple.com/documentation/hypervisor) framework on Apple Silicon.
 
 ## Getting Started
 
@@ -37,24 +37,11 @@ This library can be used to build Rust applications leveraging the `Hypervisor` 
 
 To be able to reach the Hypervisor Framework, a binary executable has to have been granted the [hypervisor entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_hypervisor).
 
-#### Certificate Chain
-
-To add this entitlement to your project, you'll first need a certificate chain to sign your binaries, which can be created by following the instructions below.
-
- - Open the *Keychain Access* application.
- - Go to **Keychain Access** > **Certificate Assistant** > **Create a Certificate**.
- - Fill out the **Name** field, this value will be used later on to identify the certificate we want to sign with and will be referred to as `${CERT_NAME}`.
- - Set **Identity Type** to `Self-Signed Root`.
- - Set **Certificate Type** to `Code Signing`.
- - Click on **Create**.
-
-You can now sign binaries and add entitlements using the following command:
+You can add this entitlement to a binary located at `/path/to/binary` by using the `entitlements.xml` file found at the root of the repository and the following command:
 
 ```
-codesign --entitlements entitlements.xml -f -s ${CERT_NAME} /path/to/binary
+codesign --sign - --entitlements entitlements.xml --deep --force /path/to/binary
 ```
-
-**Note:** The `entitlements.xml` file is available at the root of the Applevisor repository.
 
 ### Compilation Workflow
 
@@ -94,7 +81,7 @@ cargo build --release
 Sign the binary and grant the hypervisor entitlement.
 
 ```
-codesign --entitlements entitlements.xml -f -s ${CERT_NAME} target/release/${PROJECT_NAME}
+codesign --sign - --entitlements entitlements.xml --deep --force target/release/${PROJECT_NAME}
 ```
 
 Run the binary.
@@ -120,10 +107,10 @@ The following example:
  * creates a virtual machine for the current process;
  * creates a virtual CPU;
  * enables the hypervisor's debug features to be able to use breakpoints later on;
- * creates a physical memory mapping of 0x1000 bytes and maps it at address 0x10000 with RWX
+ * creates a physical memory mapping of 0x1000 bytes and maps it at address 0x4000 with RWX
    permissions;
- * writes the instructions `mov x0, #0x42; brk #0;` at address 0x10000;
- * sets PC to 0x10000;
+ * writes the instructions `mov x0, #0x42; brk #0;` at address 0x4000;
+ * sets PC to 0x4000;
  * starts the vCPU and runs our program;
  * returns when it encounters the breakpoint.
 
@@ -144,21 +131,20 @@ fn main() {
     assert!(vcpu.set_trap_debug_exceptions(true).is_ok());
     assert!(vcpu.set_trap_debug_reg_accesses(true).is_ok());
 
-    // Creates a mapping object that represents a 0x10000-byte physical memory range.
+    // Creates a mapping object that represents a 0x1000-byte physical memory range.
     let mut mem = Mapping::new(0x1000).unwrap();
 
     // This mapping needs to be mapped to effectively allocate physical memory for the guest.
-    // Here we map the map the region at address 0x10000 and set the permissions to
-    // Read-Write-Execute.
-    assert_eq!(mem.map(0x10000, MemPerms::RWX), Ok(()));
+    // Here we map the region at address 0x4000 and set the permissions to Read-Write-Execute.
+    assert_eq!(mem.map(0x4000, MemPerms::RWX), Ok(()));
 
-    // Writes a `mov x0, #0x42` instruction at address 0x10000.
-    assert_eq!(mem.write_dword(0x10000, 0xd2800840), Ok(4));
-    // Writes a `brk #0` instruction at address 0x10004.
-    assert_eq!(mem.write_dword(0x10004, 0xd4200000), Ok(4));
+    // Writes a `mov x0, #0x42` instruction at address 0x4000.
+    assert_eq!(mem.write_dword(0x4000, 0xd2800840), Ok(4));
+    // Writes a `brk #0` instruction at address 0x4004.
+    assert_eq!(mem.write_dword(0x4004, 0xd4200000), Ok(4));
 
-    // Sets PC to 0x10000.
-    assert!(vcpu.set_reg(Reg::PC, 0x10000).is_ok());
+    // Sets PC to 0x4000.
+    assert!(vcpu.set_reg(Reg::PC, 0x4000).is_ok());
 
     // Starts the Vcpu. It will execute our mov and breakpoint instructions before stopping.
     assert!(vcpu.run().is_ok());
@@ -185,7 +171,7 @@ brew install jq
 You can then run the tests with the provided `Makefile` using the following command:
 
 ```
-CERT_KEYCHAIN=${CERT_NAME} make tests
+make tests
 ```
 
 ## Author
