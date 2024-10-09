@@ -1,6 +1,6 @@
 [package]
 name = "applevisor-sys"
-version = "0.1.1"
+version = "0.1.3"
 authors = ["lyte <contact@impalabs.com>"]
 edition = "2021"
 description = "Unsafe rust bindings for the Apple Silicon Hypervisor Framework"
