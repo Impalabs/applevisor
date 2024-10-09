@@ -1,7 +1,7 @@
 [package]
 name = "applevisor-sys"
 version = "0.1.1"
-authors = ["lyte <hyperpom@impalabs.fr>"]
+authors = ["lyte <contact@impalabs.com>"]
 edition = "2021"
 description = "Unsafe rust bindings for the Apple Silicon Hypervisor Framework"
 documentation = "https://docs.rs/applevisor-sys"
@@ -13,3 +13,10 @@ categories = ["os::macos-apis", "hardware-support", "api-bindings", "virtualizat
 
 [dependencies]
 libc = "0.2"
+
+[features]
+default = []
+simd_nightly = []
+
+[package.metadata.docs.rs]
+targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]

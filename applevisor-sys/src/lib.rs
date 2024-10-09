@@ -7,8 +7,8 @@
 //!  * [Applevisor GitHub repository](https://github.com/impalabs/applevisor)
 //!  * [Applevisor crates.io page](https://crates.io/crates/applevisor)
 //!  * [Applevisor docs.rs page](https://docs.rs/applevisor)
-#![feature(portable_simd)]
-#![feature(simd_ffi)]
+
+#![cfg_attr(feature = "simd_nightly", feature(portable_simd), feature(simd_ffi))]
 #![allow(non_camel_case_types)]
 #![allow(improper_ctypes)]
 
@@ -471,7 +471,10 @@ extern "C" {
 // -----------------------------------------------------------------------------------------------
 
 /// The value that represents an ARM SIMD and FP register.
+#[cfg(feature = "simd_nightly")]
 pub type hv_simd_fp_uchar16_t = std::simd::i8x16;
+#[cfg(not(feature = "simd_nightly"))]
+pub type hv_simd_fp_uchar16_t = u128;
 
 /// The type that defines SIMD and floating-point registers.
 #[repr(C)]

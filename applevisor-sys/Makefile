@@ -1,25 +1,28 @@
 CODESIGN=codesign
 CARGO=cargo
+CARGO_NIGHTLY=$(CARGO) +nightly
 
+ENTITLEMENTS=entitlements.xml
 TARGET=applevisor-sys
 TARGET_DEBUG=target/debug/$(TARGET)
 TARGET_RELEASE=target/release/$(TARGET)
 
-KEYCHAIN=$(CERT_KEYCHAIN)
+.PHONY: build-test tests build-test-nightly tests-nightly
 
-build-debug:
-	$(CARGO) fmt
-	$(CARGO) build
-	$(CODESIGN) --entitlements entitlements.xml -f -s "$(KEYCHAIN)" "$(TARGET_DEBUG)"
-
-build-release:
-	$(CARGO) fmt
-	$(CARGO) build --release
-	$(CODESIGN) --entitlements entitlements.xml -f -s "$(KEYCHAIN)" "$(TARGET_RELEASE)"
-
-tests:
+build-tests:
 	$(CARGO) test --no-run
-	$(CODESIGN) --entitlements entitlements.xml -f -s "$(KEYCHAIN)" \
+	$(CODESIGN) --sign - --entitlements "$(ENTITLEMENTS)" --deep --force \
 		$(shell $(CARGO) test --no-run --message-format=json | \
 			jq -r "select(.profile.test == true) | .filenames[]")
+
+tests: build-tests
 	$(CARGO) test --tests -- --nocapture --test-threads=1
+
+build-tests-nightly:
+	$(CARGO_NIGHTLY) test --features=simd_nightly --no-run
+	$(CODESIGN) --sign - --entitlements "$(ENTITLEMENTS)" --deep --force \
+		$(shell $(CARGO_NIGHTLY) test --features=simd_nightly --no-run --message-format=json | \
+			jq -r "select(.profile.test == true) | .filenames[]")
+
+tests-nightly: build-tests-nightly
+	$(CARGO_NIGHTLY) test --tests --features=simd_nightly -- --nocapture --test-threads=1
