@@ -24,7 +24,7 @@
 //! ```toml
 //! # Check which version is the latest, this part of the README might not be updated
 //! # in future releases.
-//! applevisor = "0.1.1"
+//! applevisor = "0.1.3"
 //! ```
 //!
 //! ... or directly from the GitHub repository.
