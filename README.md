@@ -11,7 +11,6 @@
   <img src="https://img.shields.io/github/v/release/impalabs/applevisor?style=for-the-badge&color=f38700" alt="shields.io version" />
   <img src="https://img.shields.io/badge/platform-MacOS%20on%20Apple%20Silicon-e77600?style=for-the-badge" alt="shields.io platform" />
   <br/>
-  <img src="https://img.shields.io/badge/rust-nightly-da6500?style=for-the-badge" alt="shields.io rust version" />
   <a href="https://crates.io/crates/applevisor"><img src="https://img.shields.io/crates/v/applevisor?color=cd5300&style=for-the-badge" alt="shields.io crates.io" /></a>
   <a href="https://docs.rs/applevisor"><img src="https://img.shields.io/badge/docs.rs-rustdoc-bf4200?style=for-the-badge" alt="shields.io crates.io" /></a>
 </p>
@@ -176,4 +175,4 @@ make tests
 
 ## Author
 
-* [**Maxime Peterlin**](https://twitter.com/lyte__) - hyperpom@impalabs.com
+* [**Maxime Peterlin**](https://twitter.com/lyte__) - contact@impalabs.com
