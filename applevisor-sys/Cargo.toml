@@ -7,7 +7,7 @@ description = "Unsafe rust bindings for the Apple Silicon Hypervisor Framework"
 documentation = "https://docs.rs/applevisor-sys"
 readme = "README.md"
 repository = "https://github.com/impalabs/applevisor"
-license = "GPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 keywords = ["apple", "hypervisor", "macos", "virtualization", "aarch64"]
 categories = ["os::macos-apis", "hardware-support", "api-bindings", "virtualization"]
 
