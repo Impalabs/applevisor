@@ -15,7 +15,7 @@ categories = ["os::macos-apis", "hardware-support", "api-bindings", "virtualizat
 default-target = "aarch64-apple-darwin"
 
 [dependencies]
-applevisor-sys = { path = "./applevisor-sys/", default-features = false }
+applevisor-sys = { version = "1.0.0", default-features = false }
 
 [dev-dependencies]
 serial_test = "3.2.0"
