@@ -1,0 +1,47 @@
+name: Publish crates
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+jobs:
+  publish:
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install the Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Raw bindings - Get Cargo metadata
+        id: raw-metadata
+        working-directory: applevisor-sys
+        run: echo "RAW_METADATA=$(cargo metadata --format-version 1)" >> $GITHUB_OUTPUT
+      - name: Raw bindings - Version check
+        working-directory: applevisor-sys
+        run: test "v${{ fromJSON(steps.raw-metadata.outputs.RAW_METADATA).packages[0].version }}" = "${{ github.ref_name }}"
+      - name: Raw bindings - Dry run
+        working-directory: applevisor-sys
+        run: cargo publish --dry-run
+        env:            
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Safe bindings - Get Cargo metadata
+        id: safe-metadata
+        run: echo "SAFE_METADATA=$(cargo metadata --format-version 1)" >> $GITHUB_OUTPUT
+      - name: Safe bindings - Version check
+        run: test "v${{ fromJSON(steps.safe-metadata.outputs.SAFE_METADATA).packages[0].version }}" = "${{ github.ref_name }}"
+      - name: Safe bindings - Dry run
+        run: cargo publish --dry-run
+        env:            
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Raw bindings - Publication
+        working-directory: applevisor-sys
+        run: cargo publish
+        env:            
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Safe bindings - Publication
+        run: cargo publish
+        env:            
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
