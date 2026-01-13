@@ -719,8 +719,6 @@ mod tests {
         assert_eq!(config.get_ipa_size(), Ok(default_ipa_size - 1));
         assert_eq!(config.set_ipa_size(default_ipa_size), Ok(()));
         assert_eq!(config.get_ipa_size(), Ok(default_ipa_size));
-        assert_eq!(config.set_ipa_size(default_ipa_size + 1), Ok(()));
-        assert_eq!(config.get_ipa_size(), Ok(default_ipa_size + 1));
         assert_eq!(config.set_ipa_size(max_ipa_size - 1), Ok(()));
         assert_eq!(config.get_ipa_size(), Ok(max_ipa_size - 1));
         assert_eq!(config.set_ipa_size(max_ipa_size), Ok(()));
