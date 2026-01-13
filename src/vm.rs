@@ -268,6 +268,7 @@ impl VirtualMachine {
 ///
 /// See [`VirtualMachineInstance<GicEnabled>`].
 #[derive(Clone, Debug)]
+#[cfg(feature = "macos-15-0")]
 pub struct GicEnabled;
 
 /// Marks a virtual machine configured without a GIC instance. Only the base API will be available
@@ -446,6 +447,7 @@ impl<Gic> VirtualMachineInstance<Gic> {
 
 /// Transformes a `GicEnabled` instance into a `GicDisabled` one.
 /// The underlying object still has a GIC instance, but related APIs can't be called.
+#[cfg(feature = "macos-15-0")]
 impl From<VirtualMachineInstance<GicEnabled>> for VirtualMachineInstance<GicDisabled> {
     fn from(value: VirtualMachineInstance<GicEnabled>) -> Self {
         VirtualMachineInstance::<GicDisabled> {
@@ -505,6 +507,7 @@ pub enum VirtualMachineStaticInstance {
     /// Container for a virtual machine instance configured without a GIC.
     NoGic(VirtualMachineInstance<GicDisabled>),
     /// Container for a virtual machine instance configured with a GIC.
+    #[cfg(feature = "macos-15-0")]
     Gic(VirtualMachineInstance<GicEnabled>),
 }
 
@@ -645,6 +648,7 @@ impl VirtualMachineStaticInstance {
     pub fn get() -> Option<VirtualMachineInstance<GicDisabled>> {
         match vm_static_instance!().get() {
             Some(VirtualMachineStaticInstance::NoGic(vm)) => Some(vm.clone()),
+            #[cfg(feature = "macos-15-0")]
             Some(VirtualMachineStaticInstance::Gic(vm)) => Some(Into::<
                 VirtualMachineInstance<GicDisabled>,
             >::into(vm.clone())),
