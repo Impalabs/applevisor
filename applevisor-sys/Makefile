@@ -26,3 +26,6 @@ build-tests-nightly:
 
 tests-nightly: build-tests-nightly
 	$(CARGO_NIGHTLY) test --tests --features=simd_nightly -- --nocapture --test-threads=1
+
+clean:
+	$(CARGO) clean
