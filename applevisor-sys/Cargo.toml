@@ -11,6 +11,9 @@ license = "MIT OR Apache-2.0"
 keywords = ["apple", "hypervisor", "macos", "virtualization", "aarch64"]
 categories = ["os::macos-apis", "hardware-support", "api-bindings", "virtualization"]
 
+[package.metadata.docs.rs]
+default-target = "aarch64-apple-darwin"
+
 [dependencies]
 libc = "0.2"
 
@@ -23,6 +26,3 @@ macos-15-0 = ["macos-13-0"]
 macos-15-2 = ["macos-15-0"]
 macos-26-0 = ["macos-15-2"]
 simd-nightly = []
-
-[package.metadata.docs.rs]
-targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
