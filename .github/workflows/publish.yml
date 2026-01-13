@@ -18,13 +18,13 @@ jobs:
       - name: Raw bindings - Get Cargo metadata
         id: raw-metadata
         working-directory: applevisor-sys
-        run: echo "RAW_METADATA=$(cargo metadata --format-version 1)" >> $GITHUB_OUTPUT
+        run: echo "RAW_METADATA=$(cargo metadata --no-deps --format-version 1)" >> $GITHUB_OUTPUT
       - name: Raw bindings - Version check
         working-directory: applevisor-sys
         run: test "v${{ fromJSON(steps.raw-metadata.outputs.RAW_METADATA).packages[0].version }}" = "${{ github.ref_name }}"
       - name: Safe bindings - Get Cargo metadata
         id: safe-metadata
-        run: echo "SAFE_METADATA=$(cargo metadata --format-version 1)" >> $GITHUB_OUTPUT
+        run: echo "SAFE_METADATA=$(cargo metadata --no-deps --format-version 1)" >> $GITHUB_OUTPUT
       - name: Safe bindings - Version check
         run: test "v${{ fromJSON(steps.safe-metadata.outputs.SAFE_METADATA).packages[0].version }}" = "${{ github.ref_name }}"
       - name: Raw bindings - Dry run
