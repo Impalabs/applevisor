@@ -199,9 +199,9 @@ make coverage-macos-$(major)-$(minor)
 - **MacOS >=26.0**
     - Use feature `macos-26-0`.
     - **Available methods:**
-        - [`hv_vm_config_get_default_ipa_granule`](https://developer.apple.com/documentation/hypervisor/hv_vm_config_get_default_ipa_granule%28_:%29))
-        - [`hv_vm_config_get_ipa_granule`](https://developer.apple.com/documentation/hypervisor/hv_vm_config_get_ipa_granule%28_:_:%29))
-        - [`hv_vm_config_set_ipa_granule`](https://developer.apple.com/documentation/hypervisor/hv_vm_config_set_ipa_granule%28_:_:%29))
+        - [`hv_vm_config_get_default_ipa_granule`](https://developer.apple.com/documentation/hypervisor/hv_vm_config_get_default_ipa_granule%28_:%29)
+        - [`hv_vm_config_get_ipa_granule`](https://developer.apple.com/documentation/hypervisor/hv_vm_config_get_ipa_granule%28_:_:%29)
+        - [`hv_vm_config_set_ipa_granule`](https://developer.apple.com/documentation/hypervisor/hv_vm_config_set_ipa_granule%28_:_:%29)
 
 - **MacOS >=15.2 and <26.0**
     - Use feature `macos-15-2`.
