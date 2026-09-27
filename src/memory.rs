@@ -199,7 +199,7 @@ impl Memory {
             self.host_alloc.addr,
             guest_addr,
             self.host_alloc.size,
-            perms as u64,
+            u64::from(perms),
         ))?;
         // Update the mapping object.
         self.guest_addr = Some(guest_addr);
@@ -223,7 +223,7 @@ impl Memory {
         hv_unsafe_call!(hv_vm_protect(
             guest_addr,
             self.host_alloc.size,
-            perms as u64,
+            u64::from(perms),
         ))?;
         Ok(())
     }
