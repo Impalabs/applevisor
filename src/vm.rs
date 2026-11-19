@@ -252,15 +252,9 @@ impl VirtualMachine {
         vm_config: VirtualMachineConfig,
         gic_config: GicConfig,
     ) -> Result<VirtualMachineInstance<GicEnabled>> {
-        // Creating the VM using `with_config()` is deliberate. This ensures that if
-        // `hv_gic_create()` fails, vm will drop and the corresponding instance will be destroyed.
-        // This would not be the case with a direct call to `hv_vm_create()`.
-        let vm = Self::with_config(vm_config)?;
-        hv_unsafe_call!(hv_gic_create(gic_config.0))?;
-        Ok(VirtualMachineInstance::<GicEnabled> {
-            _guard: vm._guard.clone(),
-            _phantom: PhantomData,
-        })
+        Self::with_config(vm_config)?
+            .enable_gic(gic_config)
+            .map_err(|(_, error)| error)
     }
 }
 
@@ -291,8 +285,9 @@ pub struct VirtualMachineInstance<Gic> {
 /// Destroys the virtual machine context of the current process.
 impl<Gic> std::ops::Drop for VirtualMachineInstance<Gic> {
     fn drop(&mut self) {
-        // Safe to unwrap here, this is the only place where we modify it directly.
-        let guard = self._guard.take().unwrap();
+        let Some(guard) = self._guard.take() else {
+            return;
+        };
         // If this call succeeds, we know it's the last Arc reference, no other VM instance exists
         // or can be created from this object at this point. We can safely destroy the VM.
         if Arc::into_inner(guard).is_some() {
@@ -303,6 +298,27 @@ impl<Gic> std::ops::Drop for VirtualMachineInstance<Gic> {
 }
 
 impl<Gic> VirtualMachineInstance<Gic> {
+    /// Destroys the virtual machine and reports the result from Hypervisor.framework.
+    ///
+    /// Returns the instance with [`HypervisorError::Busy`] if another VM handle or a
+    /// resource created by this instance still holds a reference. In that case no
+    /// destroy is attempted. A native error also returns the instance, with no
+    /// confirmation that the hypervisor has released any resources.
+    ///
+    /// Callers managing external mappings must retain their backing and keep exclusive
+    /// control of the process's VM until retirement is confirmed. Dropping the returned
+    /// instance uses the usual best-effort teardown and does not report its result.
+    pub fn try_destroy(mut self) -> std::result::Result<(), (Self, HypervisorError)> {
+        if Arc::get_mut(self._guard.as_mut().unwrap()).is_none() {
+            return Err((self, HypervisorError::Busy));
+        }
+        if let Err(error) = hv_unsafe_call!(hv_vm_destroy()) {
+            return Err((self, error));
+        }
+        self._guard = None;
+        Ok(())
+    }
+
     /// Creates a new vCPU.
     ///
     /// # Example
@@ -441,6 +457,30 @@ impl<Gic> VirtualMachineInstance<Gic> {
             guest_addr: None,
             // Safe to unwrap here, it is only empty when the VM object is dropped.
             _guard_vm: Arc::clone(self._guard.as_ref().unwrap()),
+        })
+    }
+}
+
+#[cfg(feature = "macos-15-0")]
+impl VirtualMachineInstance<GicDisabled> {
+    /// Creates a GIC for this virtual machine before any vCPUs are created.
+    ///
+    /// Returns the instance with [`HypervisorError::Busy`] if it is shared with
+    /// other handles or resources. A native setup error also returns the instance
+    /// so the caller can explicitly roll back with [`Self::try_destroy`].
+    pub fn enable_gic(
+        mut self,
+        config: GicConfig,
+    ) -> std::result::Result<VirtualMachineInstance<GicEnabled>, (Self, HypervisorError)> {
+        if Arc::get_mut(self._guard.as_mut().unwrap()).is_none() {
+            return Err((self, HypervisorError::Busy));
+        }
+        if let Err(error) = hv_unsafe_call!(hv_gic_create(config.0)) {
+            return Err((self, error));
+        }
+        Ok(VirtualMachineInstance {
+            _guard: self._guard.take(),
+            _phantom: PhantomData,
         })
     }
 }
@@ -799,6 +839,40 @@ mod tests {
 
     #[test]
     #[serial]
+    fn destroy_a_vm_explicitly_after_releasing_other_references() {
+        vm_static_instance_reset();
+
+        let vm = VirtualMachine::new().unwrap();
+        let clone = vm.clone();
+        let (vm, error) = vm.try_destroy().unwrap_err();
+        assert_eq!(error, HypervisorError::Busy);
+        drop(clone);
+
+        let vcpu = vm.vcpu_create().unwrap();
+        let (vm, error) = vm.try_destroy().unwrap_err();
+        assert_eq!(error, HypervisorError::Busy);
+        drop(vcpu);
+
+        vm.try_destroy().unwrap();
+        VirtualMachine::new().unwrap().try_destroy().unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn failed_native_vm_destruction_returns_the_instance() {
+        vm_static_instance_reset();
+
+        let vm = VirtualMachine::new().unwrap();
+        // Remove the native VM behind this handle to make the next native destroy fail.
+        hv_unsafe_call!(hv_vm_destroy()).unwrap();
+        let (vm, _) = vm.try_destroy().unwrap_err();
+        assert!(vm._guard.is_some());
+        drop(vm);
+        VirtualMachine::new().unwrap().try_destroy().unwrap();
+    }
+
+    #[test]
+    #[serial]
     fn create_a_default_static_vm_instance() {
         // Making sure there's no static instance when this test starts running.
         vm_static_instance_reset();
@@ -880,6 +954,25 @@ mod tests {
             let vm = VirtualMachine::with_gic(vm_config, gic_config);
             assert!(vm.is_ok());
         }
+    }
+
+    #[cfg(feature = "macos-15-0")]
+    #[test]
+    #[serial]
+    fn roll_back_after_gic_setup_fails() {
+        vm_static_instance_reset();
+
+        let vm = VirtualMachine::new().unwrap();
+        let clone = vm.clone();
+        let (vm, error) = vm.enable_gic(GicConfig::new()).unwrap_err();
+        assert_eq!(error, HypervisorError::Busy);
+        drop(clone);
+
+        let (vm, error) = vm.enable_gic(GicConfig::new()).unwrap_err();
+        assert_eq!(error, HypervisorError::BadArgument);
+        assert!(matches!(VirtualMachine::new(), Err(HypervisorError::Busy)));
+        vm.try_destroy().unwrap();
+        VirtualMachine::new().unwrap().try_destroy().unwrap();
     }
 
     #[cfg(feature = "macos-15-0")]
