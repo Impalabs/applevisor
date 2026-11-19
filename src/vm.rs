@@ -252,15 +252,9 @@ impl VirtualMachine {
         vm_config: VirtualMachineConfig,
         gic_config: GicConfig,
     ) -> Result<VirtualMachineInstance<GicEnabled>> {
-        // Creating the VM using `with_config()` is deliberate. This ensures that if
-        // `hv_gic_create()` fails, vm will drop and the corresponding instance will be destroyed.
-        // This would not be the case with a direct call to `hv_vm_create()`.
-        let vm = Self::with_config(vm_config)?;
-        hv_unsafe_call!(hv_gic_create(gic_config.0))?;
-        Ok(VirtualMachineInstance::<GicEnabled> {
-            _guard: vm._guard.clone(),
-            _phantom: PhantomData,
-        })
+        Self::with_config(vm_config)?
+            .enable_gic(gic_config)
+            .map_err(|(_, error)| error)
     }
 }
 
@@ -463,6 +457,30 @@ impl<Gic> VirtualMachineInstance<Gic> {
             guest_addr: None,
             // Safe to unwrap here, it is only empty when the VM object is dropped.
             _guard_vm: Arc::clone(self._guard.as_ref().unwrap()),
+        })
+    }
+}
+
+#[cfg(feature = "macos-15-0")]
+impl VirtualMachineInstance<GicDisabled> {
+    /// Creates a GIC for this virtual machine before any vCPUs are created.
+    ///
+    /// Returns the instance with [`HypervisorError::Busy`] if it is shared with
+    /// other handles or resources. A native setup error also returns the instance
+    /// so the caller can explicitly roll back with [`Self::try_destroy`].
+    pub fn enable_gic(
+        mut self,
+        config: GicConfig,
+    ) -> std::result::Result<VirtualMachineInstance<GicEnabled>, (Self, HypervisorError)> {
+        if Arc::get_mut(self._guard.as_mut().unwrap()).is_none() {
+            return Err((self, HypervisorError::Busy));
+        }
+        if let Err(error) = hv_unsafe_call!(hv_gic_create(config.0)) {
+            return Err((self, error));
+        }
+        Ok(VirtualMachineInstance {
+            _guard: self._guard.take(),
+            _phantom: PhantomData,
         })
     }
 }
@@ -936,6 +954,25 @@ mod tests {
             let vm = VirtualMachine::with_gic(vm_config, gic_config);
             assert!(vm.is_ok());
         }
+    }
+
+    #[cfg(feature = "macos-15-0")]
+    #[test]
+    #[serial]
+    fn roll_back_after_gic_setup_fails() {
+        vm_static_instance_reset();
+
+        let vm = VirtualMachine::new().unwrap();
+        let clone = vm.clone();
+        let (vm, error) = vm.enable_gic(GicConfig::new()).unwrap_err();
+        assert_eq!(error, HypervisorError::Busy);
+        drop(clone);
+
+        let (vm, error) = vm.enable_gic(GicConfig::new()).unwrap_err();
+        assert_eq!(error, HypervisorError::BadArgument);
+        assert!(matches!(VirtualMachine::new(), Err(HypervisorError::Busy)));
+        vm.try_destroy().unwrap();
+        VirtualMachine::new().unwrap().try_destroy().unwrap();
     }
 
     #[cfg(feature = "macos-15-0")]
